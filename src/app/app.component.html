@@ -1,0 +1,21 @@
+<div class="container">
+  <h4 class="node-info">Pubkey: {{(info$ | async)?.nodeId}}</h4>
+  <h4>=================================================================================================</h4>
+  <div class="messages-container">
+    <h4>{{'From Web Socket: ' + wsMessages?.length}}</h4>
+    <h4 *ngFor="let wsMessage of wsMessages">{{wsMessage}}</h4>
+    <button class="button" (click)="onSendMessage()">Send Message</button>
+  </div>
+  <h4>=================================================================================================</h4>
+  <div class="messages-container">
+    <h4>{{'From SSEvents: ' + eventMessages?.length}}</h4>
+    <h4 *ngFor="let eventMessage of eventMessages">{{eventMessage | json}}</h4>
+  </div>
+  <h4>=================================================================================================</h4>
+  <div class="messages-container">
+    <h4>{{'From Http: ' + httpMessages?.length}}</h4>
+    <h4 *ngFor="let httpMessage of httpMessages">{{httpMessage | json}}</h4>
+  </div>
+  <h4>=================================================================================================</h4>
+  <router-outlet></router-outlet>
+</div>
