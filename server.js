@@ -1,12 +1,15 @@
+const path = require("path");
 const http = require('http');
-const app = require('express')();
+const express = require("express");
 const request = require('request-promise');
 const WebSocket = require('ws');
-const router = require('express').Router();
 var crypto = require('crypto');
 const EventEmitter = require('events');
 const SERVER_URL = 'http://localhost:9090';
 const proxyEmitter = new EventEmitter();
+
+const app = express();
+const router = require('express').Router();
 
 const options = {
   rejectUnauthorized: false,
@@ -15,7 +18,7 @@ const options = {
 };
 
 const onError = error => { console.error('DEFUALT ERROR'); throw error; };
-const onListening = () => { console.log('Server is up and running, please open the UI at http://localhost:5000'); };
+const onListening = () => { console.log('Server is up and running, please open the UI at http://192.168.1.7:5000'); };
 
 const server = http.createServer(app);
 server.on('error', onError);
@@ -42,13 +45,24 @@ let infoRoute = router.get('/', (req, res, next) => {
 
 let streamRoute = router.get('/stream', (req, res, next) => {
   res.set({ 'Cache-Control': 'no-cache', 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive' });
-  proxyEmitter.on('message', data => {
-    res.write('data: ' + data + '\n\n');
+  proxyEmitter.on('message', msg => {
+    res.write('data: ' + msg + '\n\n');
   });
+  proxyEmitter.on('close', connection => {
+    console.log('Disconnected Event with the Client...: ' + JSON.stringify(proxyEmitter));
+  });
+  proxyEmitter.onclose = function(e) {
+    console.log('Disconnected Event with the Client...: ' + JSON.stringify(proxyEmitter));
+  };
 });
 
-app.use('/info', infoRoute);
-app.use('/stream', streamRoute);
+app.use('/api/info', infoRoute);
+app.use('/api/stream', streamRoute);
+
+app.use('/', express.static(path.join(__dirname, "dist")));
+app.use((req, res, next) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 function authcheck() {
   return true;
@@ -61,7 +75,7 @@ function generateAcceptValue (acceptKey) {
   .digest('base64');
 }
 
-const webSocketServer = new WebSocket.Server({ noServer: true, path: '/ws', verifyClient: authcheck });
+const webSocketServer = new WebSocket.Server({ noServer: true, path: '/api/ws', verifyClient: authcheck });
 
 server.on('upgrade', (request, socket, head) => {
   if (request.headers['upgrade'] !== 'websocket') {
@@ -87,15 +101,29 @@ webSocketServer.on('connection', socket => {
   });
   webSocketServer.on('message', serverMessage => {
     console.log('Broadcasting Message to Clients...: ' + serverMessage);
-    if (socket.readyState === 1) {
+    if (client !== socket && socket.readyState === WebSocket.OPEN) {
       socket.send(serverMessage);
     }
   });
+  webSocketServer.on('close', connection => {
+    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+  });
+  webSocketServer.onclose = function(e) {
+    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+  };
   socket.on('message', clientMessage => {
     console.log('Received Message from the Client...: ' + clientMessage);
     webSocketServer.emit('message', clientMessage);
   });
 });
+
+webSocketServer.on('close', connection => {
+  console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+});
+
+webSocketServer.onclose = function(e) {
+  console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+};
 
 const WS_LINK = 'ws://:test@localhost:9090/ws';
 var waitTime = 0.5;

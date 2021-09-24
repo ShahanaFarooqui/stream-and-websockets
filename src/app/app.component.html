@@ -1,10 +1,11 @@
+<div (window:beforeunload)="onClose()"></div>
 <div class="container">
   <h4 class="node-info">Pubkey: {{(info$ | async)?.nodeId}}</h4>
   <h4>=================================================================================================</h4>
   <div class="messages-container">
     <h4>{{'From Web Socket: ' + wsMessages?.length}}</h4>
     <h4 *ngFor="let wsMessage of wsMessages">{{wsMessage}}</h4>
-    <button class="button" (click)="onSendMessage()">Send Message</button>
+    <button class="button" (click)="onClose()">Send Message</button>
   </div>
   <h4>=================================================================================================</h4>
   <div class="messages-container">

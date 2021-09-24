@@ -1,9 +1,9 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
-const SERVER_LINK = '//localhost:5000/';
+const SERVER_LINK = '//192.168.1.7:5000/api/';
 
 @Injectable()
 export class DataService implements OnDestroy {
@@ -31,7 +31,10 @@ export class DataService implements OnDestroy {
     return this.httpClient.get('http:' + SERVER_LINK + 'info');
   }
 
-    
+  closeSocket() {
+    this.socket.complete();
+  }
+ 
   getStreamHttp() {
     return this.httpClient.get('http:' + SERVER_LINK + 'stream/stream', { observe: 'events', responseType: 'text', reportProgress: true });
   }
