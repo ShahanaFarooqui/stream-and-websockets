@@ -31,10 +31,6 @@ export class DataService implements OnDestroy {
     return this.httpClient.get('http:' + SERVER_LINK + 'info');
   }
 
-  closeSocket() {
-    this.socket.complete();
-  }
- 
   getStreamHttp() {
     return this.httpClient.get('http:' + SERVER_LINK + 'stream/stream', { observe: 'events', responseType: 'text', reportProgress: true });
   }

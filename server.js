@@ -5,9 +5,9 @@ const request = require('request-promise');
 const WebSocket = require('ws');
 var crypto = require('crypto');
 const EventEmitter = require('events');
-const SERVER_URL = 'http://localhost:9090';
 const proxyEmitter = new EventEmitter();
 
+const SERVER_URL = 'http://localhost:9090';
 const app = express();
 const router = require('express').Router();
 
@@ -45,15 +45,16 @@ let infoRoute = router.get('/', (req, res, next) => {
 
 let streamRoute = router.get('/stream', (req, res, next) => {
   res.set({ 'Cache-Control': 'no-cache', 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive' });
-  proxyEmitter.on('message', msg => {
+  function sendMessage(msg) {
+    console.log('Stream Message...');
     res.write('data: ' + msg + '\n\n');
+  }
+  proxyEmitter.on('message', sendMessage);
+
+  req.on('close', function(){
+    console.log('Disconnected Event from the Client.');
+    proxyEmitter.removeListener('message', sendMessage);
   });
-  proxyEmitter.on('close', connection => {
-    console.log('Disconnected Event with the Client...: ' + JSON.stringify(proxyEmitter));
-  });
-  proxyEmitter.onclose = function(e) {
-    console.log('Disconnected Event with the Client...: ' + JSON.stringify(proxyEmitter));
-  };
 });
 
 app.use('/api/info', infoRoute);
@@ -95,35 +96,26 @@ server.on('upgrade', (request, socket, head) => {
 
 webSocketServer.on('connection', socket => {
   console.log('Connected with the Client...: ' + webSocketServer.clients.size);
-  webSocketServer.on('error', serverError => {
-    console.log('Broadcasting Error to Clients...: ' + serverError);
-    socket.send(typeof serverError === 'object' ? JSON.stringify(serverError) : Buffer.from(serverError));
-  });
-  webSocketServer.on('message', serverMessage => {
-    console.log('Broadcasting Message to Clients...: ' + serverMessage);
-    if (client !== socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(serverMessage);
+  socket.on('close', function() {
+    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+  });  
+  socket.on('error', serverError => {
+    console.log('Broadcasting Error to Clients...: ' + JSON.stringify(serverError));
+    try {
+      socket.send(typeof serverError === 'object' ? JSON.stringify(serverError) : Buffer.from(serverError));
+    } catch (err) {
+      console.log('Error while Broadcasting Error: ' + JSON.stringify(err));
     }
   });
-  webSocketServer.on('close', connection => {
-    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
-  });
-  webSocketServer.onclose = function(e) {
-    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
-  };
-  socket.on('message', clientMessage => {
-    console.log('Received Message from the Client...: ' + clientMessage);
-    webSocketServer.emit('message', clientMessage);
+  socket.on('message', serverMessage => {
+    console.log('Broadcasting Message to Clients...: ' + serverMessage);
+    try {
+      socket.send(serverMessage);
+    } catch (err) {
+      console.log('Error while Broadcasting Message: ' + JSON.stringify(err));
+    }
   });
 });
-
-webSocketServer.on('close', connection => {
-  console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
-});
-
-webSocketServer.onclose = function(e) {
-  console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
-};
 
 const WS_LINK = 'ws://:test@localhost:9090/ws';
 var waitTime = 0.5;
@@ -150,7 +142,13 @@ function connect() {
   webSocketClient.onmessage = function(msg) {
     console.log('Received Message from LNP Web Socket...');
     console.log(msg.data);
-    webSocketServer.emit('message', msg.data);
+    webSocketServer.clients.forEach(client => {
+      try {
+        client.send(msg.data);
+      } catch (err) {
+        console.log('Error while Broadcasting Error: ' + JSON.stringify(err));
+      }      
+    });
     proxyEmitter.emit('message', msg.data);
     return false;
   };
