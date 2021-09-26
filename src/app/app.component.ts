@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
+import { environment } from 'src/environments/environment';
 import { DataService } from './data.service';
 
 @Component({
@@ -22,8 +23,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.info$ = this.dataService.getInfo();
     this.getStreamSSE();
-    this.dataService.connect();
-    this.dataService.messagesSubject.pipe(takeUntil(this.unSubs[0])).subscribe(
+    this.dataService.connect().pipe(takeUntil(this.unSubs[0])).subscribe(
       msg => { this.wsMessages.push(typeof msg === 'string' ? msg : JSON.stringify(msg)); },
       err => { this.wsMessages.push(JSON.stringify(err)); },
       () => { this.wsMessages.push(JSON.stringify({message: 'Completed'})); }
@@ -45,7 +45,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   getStreamSSE() {
-    this.eventSource = new EventSource('http://192.168.1.7:5000/api/stream/stream');
+    this.eventSource = new EventSource(environment.API_URL + '/api/stream/stream');
     this.eventSource.onmessage = (event: any) => {
       this.eventMessages.push(JSON.parse(event.data));
       this.cdref.detectChanges();

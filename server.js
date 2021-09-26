@@ -7,9 +7,17 @@ var crypto = require('crypto');
 const EventEmitter = require('events');
 const proxyEmitter = new EventEmitter();
 
-const SERVER_URL = 'http://localhost:9090';
 const app = express();
 const router = require('express').Router();
+
+let SERVER_URL = '';
+
+if (process.env.LN_SERVER_URL && process.env.LN_SERVER_URL.trim() !== '') {
+  SERVER_URL = process.env.LN_SERVER_URL;
+} else {
+  SERVER_URL = 'localhost:9090';
+}
+console.warn(SERVER_URL);
 
 const options = {
   rejectUnauthorized: false,
@@ -18,7 +26,7 @@ const options = {
 };
 
 const onError = error => { console.error('DEFUALT ERROR'); throw error; };
-const onListening = () => { console.log('Server is up and running, please open the UI at http://192.168.1.7:5000'); };
+const onListening = () => { console.log('Server is up and running, please open the UI at http://localhost:5000'); };
 
 const server = http.createServer(app);
 server.on('error', onError);
@@ -33,7 +41,7 @@ app.use((req, res, next) => {
 });
 
 let infoRoute = router.get('/', (req, res, next) => {
-  options.url = SERVER_URL + '/getinfo';
+  options.url = 'http://' + SERVER_URL + '/getinfo';
   request.post(options).then((body) => {
     res.status(200).json(body);
   })
@@ -117,7 +125,7 @@ webSocketServer.on('connection', socket => {
   });
 });
 
-const WS_LINK = 'ws://:test@localhost:9090/ws';
+const WS_LINK = 'ws://:test@' + SERVER_URL + '/ws';
 var waitTime = 0.5;
 var reconnectTimeOut = null;
 
