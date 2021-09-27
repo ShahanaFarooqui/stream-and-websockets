@@ -16,7 +16,7 @@ export class DataService implements OnDestroy {
 
   connect(): Observable<any> {
     // a = this.store.pipe(select(getApiUrl));
-    let a = of(window.location.port === '5200' ? 'http://localhost:5000' : window.location.origin);
+    let a = of(window.location.port === '5200' ? 'http://localhost:5000/root' : window.location.origin);
     return a.pipe(
       filter(apiUrl => !!apiUrl),
       map((apiUrl: string) => apiUrl.replace(/^http/, 'ws') + '/api/ws'),

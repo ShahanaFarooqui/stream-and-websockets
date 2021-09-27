@@ -1,23 +1,53 @@
 # docker build -t stream:0.0 .
 # docker run --env-file=.env -p 5005:5000 stream:0.0
-# Open at http://localhost:5005/
+# Open at http://localhost:5005/root/
 
-FROM node:16-alpine
+# ====START WITHOUT NGINX==============================================
 
-RUN apk add --no-cache tini
+# FROM node:16-alpine
 
-WORKDIR /stream
+# RUN apk add --no-cache tini
 
-COPY package.json /stream/package.json
-COPY package-lock.json /stream/package-lock.json
+# WORKDIR /stream
 
-# Install dependencies
+# COPY package.json /stream/package.json
+# COPY package-lock.json /stream/package-lock.json
+
+# RUN npm install --production
+
+# COPY . /stream
+
+# EXPOSE 5000
+
+# ENTRYPOINT ["/sbin/tini", "-g", "--"]
+
+# CMD ["node", "server"]
+
+# ====END WITHOUT NGINX================================================
+
+# ====START WITH NGINX=================================================
+# Step 1
+FROM node:latest
+
+WORKDIR /usr/local/app
+
+COPY package.json /usr/local/app/package.json
+COPY package-lock.json /usr/local/app/package-lock.json
+
 RUN npm install --production
 
-COPY . /stream
+COPY ./ /usr/local/app/
 
-EXPOSE 5000
+# Step 2
+FROM nginx:latest
 
-ENTRYPOINT ["/sbin/tini", "-g", "--"]
+RUN rm -rf ./usr/share/nginx/html
+
+COPY . /usr/share/nginx/html
+
+EXPOSE 80
+# EXPOSE 5000
 
 CMD ["node", "server"]
+
+# ====END WITH NGINX=================================================

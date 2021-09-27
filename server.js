@@ -65,10 +65,10 @@ let streamRoute = router.get('/stream', (req, res, next) => {
   });
 });
 
-app.use('/api/info', infoRoute);
-app.use('/api/stream', streamRoute);
+app.use('/root/api/info', infoRoute);
+app.use('/root/api/stream', streamRoute);
 
-app.use('/', express.static(path.join(__dirname, "dist")));
+app.use('/root/', express.static(path.join(__dirname, "dist")));
 app.use((req, res, next) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
