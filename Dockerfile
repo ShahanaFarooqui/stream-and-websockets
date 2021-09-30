@@ -3,10 +3,10 @@
 # docker run --env-file=.env -p 5005:5000 stream:0.0
 # Open at http://localhost:5005/root/
 
-# With nginx and docker-compose
+# With nginx, ssl and docker-compose
 # docker-compose build
 # docker-compose up
-# Open at http://localhost:8080/root/ 
+# Open at https://localhost/root/ 
 
 FROM node:16-alpine
 
