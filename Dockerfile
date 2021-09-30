@@ -1,53 +1,28 @@
+# Standalone docker image
 # docker build -t stream:0.0 .
 # docker run --env-file=.env -p 5005:5000 stream:0.0
 # Open at http://localhost:5005/root/
 
-# ====START WITHOUT NGINX==============================================
+# With nginx and docker-compose
+# docker-compose build
+# docker-compose up
+# Open at http://localhost:8080/root/ 
 
-# FROM node:16-alpine
+FROM node:16-alpine
 
-# RUN apk add --no-cache tini
+RUN apk add --no-cache tini
 
-# WORKDIR /stream
+WORKDIR /stream
 
-# COPY package.json /stream/package.json
-# COPY package-lock.json /stream/package-lock.json
-
-# RUN npm install --production
-
-# COPY . /stream
-
-# EXPOSE 5000
-
-# ENTRYPOINT ["/sbin/tini", "-g", "--"]
-
-# CMD ["node", "server"]
-
-# ====END WITHOUT NGINX================================================
-
-# ====START WITH NGINX=================================================
-# Step 1
-FROM node:latest
-
-WORKDIR /usr/local/app
-
-COPY package.json /usr/local/app/package.json
-COPY package-lock.json /usr/local/app/package-lock.json
+COPY package.json /stream/package.json
+COPY package-lock.json /stream/package-lock.json
 
 RUN npm install --production
 
-COPY ./ /usr/local/app/
+COPY . /stream
 
-# Step 2
-FROM nginx:latest
+EXPOSE 5000
 
-RUN rm -rf ./usr/share/nginx/html
-
-COPY . /usr/share/nginx/html
-
-EXPOSE 80
-# EXPOSE 5000
+ENTRYPOINT ["/sbin/tini", "-g", "--"]
 
 CMD ["node", "server"]
-
-# ====END WITH NGINX=================================================
