@@ -14,22 +14,24 @@ export class DataService implements OnDestroy {
 
   constructor(private httpClient: HttpClient) {}
 
-  connect(): Observable<any> {
-    // a = this.store.pipe(select(getApiUrl));
-    let a = of(window.location.port === '5200' ? 'http://localhost:5000/root' : window.location.origin);
-    return a.pipe(
-      filter(apiUrl => !!apiUrl),
-      map((apiUrl: string) => apiUrl.replace(/^http/, 'ws') + '/api/ws'),
-      switchMap((wsUrl: string) => {
-        if (this.socket) {
-          return this.socket;
-        } else {
-          this.socket = webSocket(wsUrl);
-          return this.socket;
-        }
-      }),
-      retryWhen((errors) => errors.pipe(delay(this.RETRY_SECONDS)))
-    );
+  connectWebSocket(): Observable<any> {
+    // const wsURL = this.store.pipe(select(getApiUrl));
+    const wsURL = of(window.location.port === '5200' ? 'http://localhost:5000' : window.location.origin);
+    return wsURL.pipe(
+    filter(apiUrl => !!apiUrl),
+    map((apiUrl: string) => apiUrl.replace(/^http/, 'ws') + '/api/ws'),
+    switchMap((finalWSUrl: string) => {
+      if (this.socket) {
+        return this.socket;
+      } else {
+        this.socket = webSocket(finalWSUrl);
+        return this.socket;
+      }
+    }),
+    retryWhen(errors => errors.pipe(
+      map(err => { console.error(err); return err; }),
+      delay(this.RETRY_SECONDS)
+    )));
   }
 
   sendMessage(msg: string) {
@@ -44,7 +46,8 @@ export class DataService implements OnDestroy {
   }
 
   getStreamHttp() {
-    return this.httpClient.get(SERVER_LINK + 'stream/stream', { observe: 'events', responseType: 'text', reportProgress: true });
+    // Less reliable for the first client connection; Leaving for reference only, not to be used.
+    return this.httpClient.get(SERVER_LINK + 'stream/events', { observe: 'events', responseType: 'text', reportProgress: true });
   }
 
   closeConnection() {

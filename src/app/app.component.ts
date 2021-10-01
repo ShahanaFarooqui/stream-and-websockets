@@ -23,7 +23,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.info$ = this.dataService.getInfo();
     this.getStreamSSE();
-    this.dataService.connect().pipe(takeUntil(this.unSubs[0])).subscribe(
+    this.dataService.connectWebSocket().pipe(takeUntil(this.unSubs[0])).subscribe(
       msg => { this.wsMessages.push(typeof msg === 'string' ? msg : JSON.stringify(msg)); },
       err => { this.wsMessages.push(JSON.stringify(err)); },
       () => { this.wsMessages.push(JSON.stringify({message: 'Completed'})); }
@@ -33,7 +33,7 @@ export class AppComponent implements OnInit, OnDestroy {
         const cleanedData = msg.partialText.trim().split('\n').pop().substring(5); 
         this.httpMessages.push(JSON.parse(cleanedData));
         console.info(cleanedData);
-        console.info(this.httpMessages);
+        console.info(this.httpMessages);;
       },
       err => { this.httpMessages.push(err); }
     );
@@ -45,7 +45,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   getStreamSSE() {
-    this.eventSource = new EventSource(environment.API_URL + '/api/stream/stream');
+    this.eventSource = new EventSource(environment.API_URL + '/api/stream/events');
     this.eventSource.onmessage = (event: any) => {
       this.eventMessages.push(JSON.parse(event.data));
       this.cdref.detectChanges();

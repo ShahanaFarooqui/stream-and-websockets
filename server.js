@@ -4,8 +4,7 @@ const express = require("express");
 const request = require('request-promise');
 const WebSocket = require('ws');
 var crypto = require('crypto');
-const EventEmitter = require('events');
-const proxyEmitter = new EventEmitter();
+let clients = [];
 
 const app = express();
 const router = require('express').Router();
@@ -40,6 +39,10 @@ app.use((req, res, next) => {
   next();
 });
 
+let sendEventsToAllSSEClients = (newMessage) => {
+  clients.forEach(client => client.res.write('data: '+ JSON.stringify(newMessage) + '\n\n'));
+};
+
 let infoRoute = router.get('/', (req, res, next) => {
   options.url = 'http://' + SERVER_URL + '/getinfo';
   request.post(options).then((body) => {
@@ -51,22 +54,23 @@ let infoRoute = router.get('/', (req, res, next) => {
   });
 });
 
-let streamRoute = router.get('/stream', (req, res, next) => {
-  res.set({ 'Cache-Control': 'no-cache', 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive' });
-  function sendMessage(msg) {
-    console.log('Stream Message...');
-    res.write('data: ' + msg + '\n\n');
-  }
-  proxyEmitter.on('message', sendMessage);
+let SSERoute = router.get('/events', (req, res, next) => {
+  const headers = { 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache' };
+  res.writeHead(200, headers);
 
-  req.on('close', function(){
-    console.log('Disconnected Event from the Client.');
-    proxyEmitter.removeListener('message', sendMessage);
+  const clientId = Date.now();
+  const newClient = { id: clientId, res };
+  clients.push(newClient);
+  console.log('Connected: ' + clientId + ', Total SSE clients: ' + clients.length);
+
+  req.on('close', () => {
+    clients = clients.filter(client => client.id !== clientId);
+    console.log('Disconnected: ' + clientId + ', Total SSE clients: ' + clients.length);
   });
 });
 
-app.use('/root/api/info', infoRoute);
-app.use('/root/api/stream', streamRoute);
+app.use('/api/info', infoRoute);
+app.use('/api/stream', SSERoute);
 
 app.use('/root/', express.static(path.join(__dirname, "dist")));
 app.use((req, res, next) => {
@@ -103,27 +107,31 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 webSocketServer.on('connection', socket => {
-  console.log('Connected with the Client...: ' + webSocketServer.clients.size);
+  socket.clientId = Date.now(); 
+  console.log('Connected: ' + socket.clientId + ', Total WS clients: ' + webSocketServer.clients.size);
   socket.on('close', function() {
-    console.log('Disconnected with the Client...: ' + webSocketServer.clients.size);
+    console.log('Disconnected: ' + socket.clientId + ', Total WS clients: ' + webSocketServer.clients.size);
   });  
   socket.on('error', serverError => {
-    console.log('Broadcasting Error to Clients...: ' + JSON.stringify(serverError));
+    console.log('Broadcasting error to clients...: ' + JSON.stringify(serverError));
     try {
-      socket.send(typeof serverError === 'object' ? JSON.stringify(serverError) : Buffer.from(serverError));
+      socket.send(JSON.stringify({error: (typeof serverError === 'string' ? serverError : JSON.stringify(serverError)) }));
     } catch (err) {
-      console.log('Error while Broadcasting Error: ' + JSON.stringify(err));
-    }
-  });
-  socket.on('message', serverMessage => {
-    console.log('Broadcasting Message to Clients...: ' + serverMessage);
-    try {
-      socket.send(serverMessage);
-    } catch (err) {
-      console.log('Error while Broadcasting Message: ' + JSON.stringify(err));
+      console.log('Error while broadcasting error: ' + JSON.stringify(err));
     }
   });
 });
+
+let sendEventsToAllWSClients = (newMessage) => {
+  webSocketServer.clients.forEach(client => {
+    try {
+      console.log('Broadcasting message to client...: ' + client.clientId);
+      client.send(newMessage);
+    } catch (err) {
+      console.log('Error while broadcasting message: ' + JSON.stringify(err));
+    }      
+  });
+};
 
 const WS_LINK = 'ws://:test@' + SERVER_URL + '/ws';
 var waitTime = 0.5;
@@ -150,15 +158,11 @@ function connect() {
   webSocketClient.onmessage = function(msg) {
     console.log('Received Message from LNP Web Socket...');
     console.log(msg.data);
+    // sendEventsToAllWSClients(msg.data);
     webSocketServer.clients.forEach(client => {
-      try {
-        client.send(msg.data);
-      } catch (err) {
-        console.log('Error while Broadcasting Error: ' + JSON.stringify(err));
-      }      
+      client.emit('error', msg.data);
     });
-    proxyEmitter.emit('message', msg.data);
-    return false;
+    sendEventsToAllSSEClients(msg.data);
   };
 
   webSocketClient.onclose = function(e) {
